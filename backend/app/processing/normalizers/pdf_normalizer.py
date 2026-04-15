@@ -177,11 +177,22 @@ def _extract_pdf_images(page_idx: int, source_location: str, asset_dir: Path) ->
             with open(img_path, "wb") as f:
                 f.write(base_image["image"])
 
+            # Get image bounding box on the page
+            bbox = None
+            try:
+                rects = page.get_image_rects(xref)
+                if rects:
+                    r = rects[0]  # use first occurrence
+                    bbox = [r.x0, r.y0, r.x1, r.y1]
+            except Exception:
+                logger.debug("Could not get image rect for xref %d on page %d", xref, page_idx)
+
             elements.append(NormalizedElement(
                 element_id=f"page{page_idx}_img{img_idx}",
                 element_type="IMAGE",
                 image_path=str(img_path),
-                extra={"page_index": page_idx, "xref": xref},
+                bounding_box=bbox,
+                extra={"page_index": page_idx, "xref": xref, "bbox": bbox},
             ))
         doc.close()
     except Exception:

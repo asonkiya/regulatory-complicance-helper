@@ -62,6 +62,10 @@ export async function getAsset(assetId: string): Promise<Asset> {
   return request<Asset>(`/assets/${assetId}`);
 }
 
+export function getAssetFileUrl(assetId: string): string {
+  return `${API_BASE}/api/v1/assets/${assetId}/file`;
+}
+
 // ── Issues ──────────────────────────────────────────────────────────────────
 
 export async function listIssues(

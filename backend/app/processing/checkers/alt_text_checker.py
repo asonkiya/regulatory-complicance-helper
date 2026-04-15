@@ -29,7 +29,10 @@ def check_alt_text(doc: NormalizedDocument) -> list[IssueResult]:
         for page in doc.pages:
             for element in page.elements:
                 if element.element_type == "IMAGE":
-                    issue = _check_element(element, {"page": page.page_index, "element_id": element.element_id})
+                    location: dict = {"page": page.page_index, "element_id": element.element_id}
+                    if element.bounding_box:
+                        location["bbox"] = element.bounding_box
+                    issue = _check_element(element, location)
                     if issue:
                         issues.append(issue)
 

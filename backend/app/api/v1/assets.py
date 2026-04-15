@@ -1,12 +1,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.models.asset import AccessibilityAsset
 from app.schemas.asset import AssetListResponse, AssetResponse
+from app.services.storage_service import get_asset_original_path
 
 router = APIRouter()
 
@@ -47,3 +49,29 @@ def get_asset(asset_id: uuid.UUID, db: Session = Depends(get_db)) -> AssetRespon
     if not asset:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
     return AssetResponse.model_validate(asset)
+
+
+_MEDIA_TYPES = {
+    "PDF": "application/pdf",
+    "PPTX": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "MP4": "video/mp4",
+}
+
+
+@router.get("/assets/{asset_id}/file")
+def get_asset_file(asset_id: uuid.UUID, db: Session = Depends(get_db)) -> FileResponse:
+    """Serve the original uploaded file for in-browser viewing."""
+    asset = db.get(AccessibilityAsset, asset_id)
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    ext = asset.source_type.lower()
+    path = get_asset_original_path(asset_id, ext)
+    if not path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
+
+    return FileResponse(
+        path=str(path),
+        media_type=_MEDIA_TYPES.get(asset.source_type, "application/octet-stream"),
+        headers={"Content-Disposition": "inline"},
+    )

@@ -1,22 +1,62 @@
 "use client";
 
 import Link from "next/link";
-import { use, useState } from "react";
+import { use, useState, useMemo } from "react";
 import useSWR from "swr";
-import { listIssues, listArtifacts, updateIssue } from "../../../../lib/api";
+import {
+  listIssues,
+  listArtifacts,
+  updateIssue,
+  getAsset,
+  getAssetFileUrl,
+} from "../../../../lib/api";
 import { IssuePanel } from "../../../../components/review/IssuePanel";
 import { AltTextEditor } from "../../../../components/review/AltTextEditor";
 import { TranscriptEditor } from "../../../../components/review/TranscriptEditor";
+import { PdfViewer } from "../../../../components/review/PdfViewer";
 import type { Issue, Artifact } from "../../../../lib/types";
 
 interface Params {
   assetId: string;
 }
 
+/** Extract the 0-indexed page number from an issue's location, or undefined. */
+function getIssuePage(issue: Issue | null): number | undefined {
+  if (!issue?.location_in_asset) return undefined;
+  const loc = issue.location_in_asset;
+  if ("page" in loc && typeof loc.page === "number") return loc.page;
+  return undefined;
+}
+
+/** Extract highlight bboxes from the selected issue's location data. */
+function getIssueHighlights(
+  issue: Issue | null
+): { bbox: [number, number, number, number] }[] {
+  if (!issue?.location_in_asset) return [];
+  const loc = issue.location_in_asset;
+  const highlights: { bbox: [number, number, number, number] }[] = [];
+
+  if ("bbox" in loc && Array.isArray(loc.bbox) && loc.bbox.length === 4) {
+    highlights.push({ bbox: loc.bbox as [number, number, number, number] });
+  }
+  if (
+    "table_bbox" in loc &&
+    Array.isArray(loc.table_bbox) &&
+    loc.table_bbox.length === 4
+  ) {
+    highlights.push({
+      bbox: loc.table_bbox as [number, number, number, number],
+    });
+  }
+
+  return highlights;
+}
+
 export default function ReviewPage({ params }: { params: Promise<Params> }) {
   const { assetId } = use(params);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
 
+  const { data: asset } = useSWR(`asset-${assetId}`, () => getAsset(assetId));
   const { data: issueData, mutate: mutateIssues } = useSWR(
     `issues-${assetId}`,
     () => listIssues(assetId)
@@ -27,6 +67,16 @@ export default function ReviewPage({ params }: { params: Promise<Params> }) {
   );
 
   const issues = issueData?.issues ?? [];
+  const isPdf = asset?.source_type === "PDF";
+
+  const targetPage = useMemo(
+    () => getIssuePage(selectedIssue),
+    [selectedIssue]
+  );
+  const highlights = useMemo(
+    () => getIssueHighlights(selectedIssue),
+    [selectedIssue]
+  );
 
   const getArtifactForIssue = (issue: Issue): Artifact | undefined =>
     artifacts?.find((a) => a.issue_id === issue.issue_id);
@@ -126,7 +176,7 @@ export default function ReviewPage({ params }: { params: Promise<Params> }) {
           className="text-gray-500 hover:text-gray-700 text-sm"
           aria-label="Back to asset detail"
         >
-          ← Asset
+          &larr; Asset
         </Link>
         <h1 className="text-xl font-semibold text-gray-900">Review Issues</h1>
         <span className="text-sm text-gray-500">
@@ -137,7 +187,7 @@ export default function ReviewPage({ params }: { params: Promise<Params> }) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: issue list */}
         <aside
-          className="w-80 bg-white border-r border-gray-200 overflow-y-auto flex-shrink-0"
+          className="w-72 bg-white border-r border-gray-200 overflow-y-auto flex-shrink-0"
           aria-label="Issues list"
         >
           {issues.length === 0 ? (
@@ -157,9 +207,23 @@ export default function ReviewPage({ params }: { params: Promise<Params> }) {
           )}
         </aside>
 
+        {/* Center panel: PDF viewer (only for PDF assets) */}
+        {isPdf && (
+          <section
+            className="flex-1 min-w-0 border-r border-gray-200"
+            aria-label="Document viewer"
+          >
+            <PdfViewer
+              fileUrl={getAssetFileUrl(assetId)}
+              targetPage={targetPage}
+              highlights={highlights}
+            />
+          </section>
+        )}
+
         {/* Right panel: contextual editor */}
         <section
-          className="flex-1 overflow-y-auto"
+          className={`overflow-y-auto flex-shrink-0 ${isPdf ? "w-96" : "flex-1"}`}
           aria-label="Issue detail and editor"
           aria-live="polite"
         >

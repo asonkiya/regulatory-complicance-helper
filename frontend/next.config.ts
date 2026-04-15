@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  turbopack: {
+    resolveAlias: {
+      // react-pdf optionally imports canvas (node-only); stub it out for the browser
+      canvas: { browser: "./empty-module.js" },
+    },
+  },
 };
 
 export default nextConfig;

@@ -20,7 +20,7 @@ dependencies = [
     # Config
     "pydantic-settings>=2.3.0",
     # Task queue
-    "celery[redis]>=5.4.0",
+    "celery[redis,gevent]>=5.4.0",
     "redis>=5.0.0",
     # AI / ML
     "anthropic>=0.34.0",
