@@ -19,6 +19,7 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     # Route tasks to specific queues
     task_routes={
+        "app.tasks.pipeline.*": {"queue": "default"},
         "app.tasks.normalize_task.*": {"queue": "default"},
         "app.tasks.check_task.*": {"queue": "default"},
         "app.tasks.output_task.*": {"queue": "default"},
@@ -33,6 +34,7 @@ celery_app.conf.update(
 # Auto-discover tasks
 celery_app.autodiscover_tasks(
     [
+        "app.tasks.pipeline",
         "app.tasks.normalize_task",
         "app.tasks.check_task",
         "app.tasks.remediate_task",

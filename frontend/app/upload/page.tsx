@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DropZone } from "../../components/upload/DropZone";
 import { UploadProgress } from "../../components/upload/UploadProgress";
 import { uploadAsset } from "../../lib/api";
@@ -26,9 +26,11 @@ export default function UploadPage() {
     }
   };
 
-  if (isComplete && assetId) {
-    router.push(`/assets/${assetId}`);
-  }
+  useEffect(() => {
+    if (isComplete && assetId) {
+      router.push(`/assets/${assetId}`);
+    }
+  }, [isComplete, assetId, router]);
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
